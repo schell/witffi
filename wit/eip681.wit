@@ -1,0 +1,66 @@
+/// EIP-681 transaction request parsing.
+///
+/// This package provides types and functions for parsing EIP-681
+/// Ethereum transaction request URIs (e.g. `ethereum:0x...?value=1000`).
+package zcash:eip681;
+
+interface types {
+    /// A 256-bit unsigned integer, encoded as 32 bytes big-endian.
+    type u256 = list<u8>;
+
+    /// A native ETH transfer request.
+    record native-request {
+        /// The schema prefix (e.g. "ethereum").
+        schema-prefix: string,
+        /// The chain ID, if specified.
+        chain-id: option<u64>,
+        /// The recipient address (ERC-55 checksummed hex string).
+        recipient-address: string,
+        /// The value in atomic units (wei), if specified.
+        value-atomic: option<u256>,
+        /// The gas limit, if specified.
+        gas-limit: option<u256>,
+        /// The gas price, if specified.
+        gas-price: option<u256>,
+        /// The canonical display string (round-trips through parsing).
+        display: string,
+    }
+
+    /// An ERC-20 token transfer request.
+    record erc20-request {
+        /// The chain ID, if specified.
+        chain-id: option<u64>,
+        /// The token contract address (ERC-55 checksummed hex string).
+        token-contract-address: string,
+        /// The recipient address.
+        recipient-address: string,
+        /// The value in atomic token units.
+        value-atomic: u256,
+        /// The canonical display string.
+        display: string,
+    }
+
+    /// A parsed EIP-681 transaction request.
+    variant transaction-request {
+        /// A native ETH transfer.
+        native(native-request),
+        /// An ERC-20 token transfer.
+        erc20(erc20-request),
+        /// An unrecognised request (raw URI string preserved).
+        unrecognised(string),
+    }
+}
+
+interface parser {
+    use types.{transaction-request};
+
+    /// Parse an EIP-681 URI string into a transaction request.
+    ///
+    /// Returns an error string if parsing fails.
+    parse: func(input: string) -> result<transaction-request, string>;
+}
+
+/// The eip681 world exports a parser for EIP-681 URIs.
+world eip681 {
+    export parser;
+}

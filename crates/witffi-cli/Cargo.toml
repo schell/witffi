@@ -1,0 +1,18 @@
+[package]
+name = "witffi-cli"
+description = "CLI tool for generating native FFI bindings from WIT definitions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "witffi"
+path = "src/main.rs"
+
+[dependencies]
+witffi-core.workspace = true
+witffi-rust.workspace = true
+witffi-swift.workspace = true
+wit-parser.workspace = true
+anyhow.workspace = true
+clap.workspace = true

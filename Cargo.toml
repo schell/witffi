@@ -1,0 +1,23 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/witffi-core",
+    "crates/witffi-rust",
+    "crates/witffi-swift",
+    "crates/witffi-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+witffi-core = { path = "crates/witffi-core" }
+witffi-rust = { path = "crates/witffi-rust" }
+witffi-swift = { path = "crates/witffi-swift" }
+wit-parser = "0.245"
+anyhow = "1"
+heck = "0.5"
+clap = { version = "4", features = ["derive"] }
+pretty_assertions = "1"

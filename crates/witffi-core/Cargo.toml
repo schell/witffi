@@ -1,0 +1,14 @@
+[package]
+name = "witffi-core"
+description = "Core WIT parsing and FFI type mapping for witffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+wit-parser.workspace = true
+anyhow.workspace = true
+heck.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

@@ -1,0 +1,15 @@
+[package]
+name = "witffi-swift"
+description = "Swift bindings generator for witffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+witffi-core.workspace = true
+wit-parser.workspace = true
+anyhow.workspace = true
+heck.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
