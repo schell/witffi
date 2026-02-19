@@ -1,0 +1,5 @@
+module CZcashEip681 {
+    header "ffi.h"
+    header "witffi_types.h"
+    export *
+}

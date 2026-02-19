@@ -1066,13 +1066,16 @@ impl<'a> RustGenerator<'a> {
                 writeln!(out)?;
 
                 for case in &variant.cases {
-                    if case.ty.is_some() {
+                    if let Some(ty) = &case.ty {
                         let payload_name =
                             format!("{c_name}{}Payload", names::to_rust_type(&case.name));
-                        writeln!(out, "typedef struct {payload_name} {payload_name};")?;
+                        let value_type = self.type_to_c_header(ty);
+                        writeln!(out, "typedef struct {{")?;
+                        writeln!(out, "    {value_type} value;")?;
+                        writeln!(out, "}} {payload_name};")?;
+                        writeln!(out)?;
                     }
                 }
-                writeln!(out)?;
 
                 writeln!(out, "typedef struct {{")?;
                 writeln!(out, "    {tag_name} tag;")?;

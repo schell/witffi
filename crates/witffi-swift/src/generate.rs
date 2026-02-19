@@ -17,7 +17,7 @@ use anyhow::Context as _;
 use heck::ToPascalCase;
 use wit_parser::{Resolve, Type, TypeDefKind, TypeId, WorldId};
 
-use witffi_core::{exported_functions, names, ExportedFunction};
+use witffi_core::{ExportedFunction, exported_functions, names};
 
 /// Configuration for the Swift generator.
 #[derive(Debug, Clone)]
@@ -167,7 +167,15 @@ impl<'a> SwiftGenerator<'a> {
             "        let copied = {prefix}_error_message_utf8(&buf, len)"
         )?;
         writeln!(out, "        if copied > 0 {{")?;
-        writeln!(out, "            let msg = String(cString: buf)")?;
+        writeln!(
+            out,
+            "            let msg = buf.withUnsafeBufferPointer {{ ptr in"
+        )?;
+        writeln!(
+            out,
+            "                String(decoding: UnsafeRawBufferPointer(ptr).prefix(Int(copied - 1)), as: UTF8.self)"
+        )?;
+        writeln!(out, "            }}")?;
         writeln!(out, "            return WitFFIError(message: msg)")?;
         writeln!(out, "        }} else {{")?;
         writeln!(
@@ -200,13 +208,13 @@ impl<'a> SwiftGenerator<'a> {
         )?;
         writeln!(out, "    if buf.ptr == nil || buf.len == 0 {{")?;
         writeln!(out, "        if buf.ptr != nil {{")?;
-        writeln!(out, "            var copy = buf")?;
+        writeln!(out, "            let copy = buf")?;
         writeln!(out, "            {prefix}_free_byte_buffer(copy)")?;
         writeln!(out, "        }}")?;
         writeln!(out, "        return \"\"")?;
         writeln!(out, "    }}")?;
         writeln!(out, "    let data = Data(bytes: buf.ptr, count: buf.len)")?;
-        writeln!(out, "    var copy = buf")?;
+        writeln!(out, "    let copy = buf")?;
         writeln!(out, "    {prefix}_free_byte_buffer(copy)")?;
         writeln!(
             out,
@@ -226,13 +234,13 @@ impl<'a> SwiftGenerator<'a> {
         )?;
         writeln!(out, "    if buf.ptr == nil || buf.len == 0 {{")?;
         writeln!(out, "        if buf.ptr != nil {{")?;
-        writeln!(out, "            var copy = buf")?;
+        writeln!(out, "            let copy = buf")?;
         writeln!(out, "            {prefix}_free_byte_buffer(copy)")?;
         writeln!(out, "        }}")?;
         writeln!(out, "        return Data()")?;
         writeln!(out, "    }}")?;
         writeln!(out, "    let data = Data(bytes: buf.ptr, count: buf.len)")?;
-        writeln!(out, "    var copy = buf")?;
+        writeln!(out, "    let copy = buf")?;
         writeln!(out, "    {prefix}_free_byte_buffer(copy)")?;
         writeln!(out, "    return data")?;
         writeln!(out, "}}")?;

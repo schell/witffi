@@ -15,12 +15,13 @@
 //! 4. `witffi_register!(Impl)` stamps out the actual `extern "C"` symbols
 #![allow(non_camel_case_types, non_snake_case, unused_unsafe)]
 
-// Pull in the generated FFI types, trait, and macro.
-include!(concat!(env!("OUT_DIR"), "/ffi.rs"));
-
 use std::ptr;
 
 use witffi_types::FfiByteBuffer;
+
+// build.rs generates src/ffi.rs — pull it in as a module.
+mod ffi;
+use ffi::*;
 
 // ---- Conversion helpers ----
 

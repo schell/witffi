@@ -6,7 +6,8 @@
 use std::path::Path;
 
 fn main() {
-    let wit_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../wit/eip681.wit");
+    let cargo_manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let wit_path = cargo_manifest_dir.join("../../wit/eip681.wit");
 
     println!("cargo::rerun-if-changed={}", wit_path.display());
 
@@ -21,18 +22,15 @@ fn main() {
 
     // Generate Rust scaffolding
     let rust_code = generator.generate().expect("failed to generate Rust code");
-    let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR not set");
-    let rust_path = Path::new(&out_dir).join("ffi.rs");
+    let src_dir = cargo_manifest_dir.join("src");
+    let rust_path = Path::new(&src_dir).join("ffi.rs");
     std::fs::write(&rust_path, &rust_code).expect("failed to write ffi.rs");
 
     // Generate C header
     let c_header = generator
         .generate_c_header()
         .expect("failed to generate C header");
-    let header_path = Path::new(&out_dir).join("ffi.h");
-    std::fs::write(&header_path, &c_header).expect("failed to write ffi.h");
-
-    // Also copy the header to the crate root for easy consumption
-    let crate_header = Path::new(env!("CARGO_MANIFEST_DIR")).join("ffi.h");
+    // Copy the header to the crate root for easy consumption
+    let crate_header = cargo_manifest_dir.join("ffi.h");
     std::fs::write(&crate_header, &c_header).expect("failed to write ffi.h to crate root");
 }
