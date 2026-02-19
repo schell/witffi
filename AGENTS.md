@@ -31,7 +31,7 @@ Workspace with 4 crates. Dependency flow: `witffi-cli` -> `{witffi-core, witffi-
 |-------|------|
 | `witffi-core` | WIT loading (`load_wit`), name convention mapping, type analysis helpers |
 | `witffi-rust` | Rust `extern "C"` scaffolding + C header generator (~1200 lines) |
-| `witffi-swift` | Swift bindings generator (stub, not yet implemented) |
+| `witffi-swift` | Swift bindings generator (~1200 lines) |
 | `witffi-cli` | `witffi` binary, thin clap wrapper that wires the other crates together |
 
 All dependencies are declared at the workspace level in the root `Cargo.toml` and referenced with `.workspace = true` in crate manifests. The WIT fixture at `wit/eip681.wit` is used by tests across crates.
@@ -62,7 +62,7 @@ Organize imports in three groups separated by blank lines:
 ```rust
 use std::path::Path;                          // 1. std
 
-use anyhow::{bail, Context};                  // 2. External crates
+use snafu::prelude::*;                        // 2. External crates
 use wit_parser::{Resolve, WorldId};
 
 use witffi_core::{exported_functions, names}; // 3. Internal/workspace crates
@@ -72,7 +72,7 @@ use witffi_core::{exported_functions, names}; // 3. Internal/workspace crates
 - Use **`use super::*`** only inside `#[cfg(test)] mod tests`
 - Group multiple items from one module with braces: `use wit_parser::{Resolve, Type, WorldId};`
 - Keep separate `use` lines for different `std` submodules (don't merge into `use std::{...}`)
-- Import traits for method access without the name: `use anyhow::Context as _;`
+- Import `use snafu::prelude::*;` in files that define or use snafu error types
 
 ### Re-exports
 
@@ -86,11 +86,15 @@ So consumers write `witffi_rust::RustGenerator` instead of `witffi_rust::generat
 
 ### Error Handling
 
-- **`anyhow` only** — no `thiserror`, no custom error types
-- Return `anyhow::Result<T>` from all fallible functions
-- Use `bail!("message")` for precondition failures
-- Use `.with_context(|| format!("doing X: {}", detail))?` to annotate errors from called functions
-- Context messages are **lowercase** descriptive clauses: `"failed to load WIT directory: ..."`
+- **`snafu`** for typed errors in library crates, `snafu::Whatever` for the CLI
+- Library crates define `pub enum Error` with `#[derive(Debug, Snafu)]` and one variant per failure mode
+- Use `ensure!()` for precondition checks
+- Use `.context(FooSnafu { field })?` to wrap errors from called functions
+- Display messages are **lowercase** descriptive clauses: `"failed to load WIT directory: ..."`
+- Generator private methods return `fmt::Result`; public methods return `Result<T, Error>` and
+  wrap the inner call with `.context(WriteSnafu)?`
+- The CLI uses `snafu::Whatever` with `.whatever_context()` / `.with_whatever_context()` and
+  `#[snafu::report]` on `main`
 - Use `.expect("reason")` only in tests, never in library/CLI code
 
 ### Documentation
@@ -140,11 +144,11 @@ pub struct FooGenerator<'a> {
 
 impl<'a> FooGenerator<'a> {
     pub fn new(resolve: &'a Resolve, world_id: WorldId, config: FooConfig) -> Self { ... }
-    pub fn generate(&self) -> anyhow::Result<String> { ... }
+    pub fn generate(&self) -> Result<String, Error> { ... }
 }
 ```
 
-Code generation uses `writeln!(out, ...)` into a `String` via the `std::fmt::Write` trait. The `?` operator propagates `fmt::Error` automatically converted to `anyhow::Error`.
+Each generator defines its own `pub enum Error` with a `Write { source: std::fmt::Error }` variant. The public `generate()` method delegates to a private `generate_inner(&self, out: &mut String) -> fmt::Result` method and wraps the result with `.context(WriteSnafu)?`. All private methods return `fmt::Result` directly, using `writeln!(out, ...)?` naturally.
 
 ## Testing
 

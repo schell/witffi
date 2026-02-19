@@ -1146,8 +1146,8 @@ dependencies = [
 name = "witffi-cli"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "clap",
+ "snafu",
  "wit-parser",
  "witffi-core",
  "witffi-rust",
@@ -1158,9 +1158,9 @@ dependencies = [
 name = "witffi-core"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "heck",
  "pretty_assertions",
+ "snafu",
  "wit-parser",
 ]
 
@@ -1168,9 +1168,9 @@ dependencies = [
 name = "witffi-rust"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "heck",
  "pretty_assertions",
+ "snafu",
  "wit-parser",
  "witffi-core",
  "witffi-types",
@@ -1180,9 +1180,9 @@ dependencies = [
 name = "witffi-swift"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "heck",
  "pretty_assertions",
+ "snafu",
  "wit-parser",
  "witffi-core",
 ]

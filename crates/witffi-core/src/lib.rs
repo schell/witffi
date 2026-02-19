@@ -10,11 +10,39 @@
 
 pub mod names;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use anyhow::{Context, bail};
+use snafu::prelude::*;
 pub use wit_parser;
 use wit_parser::{Resolve, UnresolvedPackageGroup, WorldId};
+
+/// Errors that can occur when loading and resolving WIT definitions.
+#[derive(Debug, Snafu)]
+pub enum Error {
+    /// Failed to load a WIT directory.
+    #[snafu(display("failed to load WIT directory: {}", path.display()))]
+    LoadDir {
+        source: Box<dyn std::error::Error + Send + Sync>,
+        path: PathBuf,
+    },
+
+    /// Failed to parse a WIT file.
+    #[snafu(display("failed to parse WIT file: {}", path.display()))]
+    ParseFile {
+        source: Box<dyn std::error::Error + Send + Sync>,
+        path: PathBuf,
+    },
+
+    /// Failed to resolve a WIT package after parsing.
+    #[snafu(display("failed to resolve WIT package"))]
+    ResolvePackage {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    /// The WIT package did not contain exactly one world.
+    #[snafu(display("expected exactly 1 world in WIT package, found {count}"))]
+    WorldCount { count: usize },
+}
 
 /// Load and resolve WIT definitions from a directory or single file.
 ///
@@ -27,38 +55,41 @@ use wit_parser::{Resolve, UnresolvedPackageGroup, WorldId};
 /// - The path does not exist or is not readable
 /// - The WIT files contain syntax errors
 /// - There is not exactly one world defined
-pub fn load_wit(path: &Path) -> anyhow::Result<(Resolve, WorldId)> {
+pub fn load_wit(path: &Path) -> Result<(Resolve, WorldId), Error> {
     let mut resolve = Resolve::default();
 
     if path.is_dir() {
         resolve
             .push_dir(path)
-            .with_context(|| format!("failed to load WIT directory: {}", path.display()))?;
+            .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.into() })
+            .context(LoadDirSnafu { path })?;
         let worlds: Vec<WorldId> = resolve.worlds.iter().map(|(id, _)| id).collect();
-        if worlds.len() != 1 {
-            bail!(
-                "expected exactly 1 world in WIT package, found {}",
-                worlds.len()
-            );
-        }
+        ensure!(
+            worlds.len() == 1,
+            WorldCountSnafu {
+                count: worlds.len()
+            }
+        );
         return Ok((resolve, worlds[0]));
     }
 
     let group = UnresolvedPackageGroup::parse_file(path)
-        .with_context(|| format!("failed to parse WIT file: {}", path.display()))?;
+        .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.into() })
+        .context(ParseFileSnafu { path })?;
 
     let pkg_id = resolve
         .push_group(group)
-        .with_context(|| "failed to resolve WIT package")?;
+        .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { e.into() })
+        .context(ResolvePackageSnafu)?;
 
     let pkg_data = &resolve.packages[pkg_id];
     let worlds: Vec<WorldId> = pkg_data.worlds.values().copied().collect();
-    if worlds.len() != 1 {
-        bail!(
-            "expected exactly 1 world in WIT package, found {}",
-            worlds.len()
-        );
-    }
+    ensure!(
+        worlds.len() == 1,
+        WorldCountSnafu {
+            count: worlds.len()
+        }
+    );
     Ok((resolve, worlds[0]))
 }
 

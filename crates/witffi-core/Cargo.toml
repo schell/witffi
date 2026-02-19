@@ -7,7 +7,7 @@ license.workspace = true
 
 [dependencies]
 wit-parser.workspace = true
-anyhow.workspace = true
+snafu.workspace = true
 heck.workspace = true
 
 [dev-dependencies]

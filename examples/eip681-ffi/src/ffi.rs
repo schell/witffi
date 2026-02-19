@@ -86,7 +86,6 @@ pub struct FfiTransactionRequest {
 pub trait Eip681 {
     fn parser_parse(input: &str) -> Result<FfiTransactionRequest, String>;
 }
-
 // ---- Free functions ----
 
 /// Free an `FfiByteBuffer` returned by an FFI function.

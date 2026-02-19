@@ -8,7 +8,7 @@ license.workspace = true
 [dependencies]
 witffi-core.workspace = true
 wit-parser.workspace = true
-anyhow.workspace = true
+snafu.workspace = true
 heck.workspace = true
 
 [dev-dependencies]

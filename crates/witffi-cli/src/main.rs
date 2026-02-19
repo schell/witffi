@@ -2,8 +2,10 @@
 
 use std::path::PathBuf;
 
-use anyhow::Context as _;
 use clap::{Parser, Subcommand, ValueEnum};
+use snafu::prelude::*;
+
+type Result<T, E = snafu::Whatever> = std::result::Result<T, E>;
 
 #[derive(Parser)]
 #[command(
@@ -49,7 +51,8 @@ enum Language {
     Swift,
 }
 
-fn main() -> anyhow::Result<()> {
+#[snafu::report]
+fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
@@ -61,10 +64,11 @@ fn main() -> anyhow::Result<()> {
             c_type_prefix,
         } => {
             let (resolve, world_id) = witffi_core::load_wit(&wit)
-                .with_context(|| format!("loading WIT from {}", wit.display()))?;
+                .with_whatever_context(|_| format!("loading WIT from {}", wit.display()))?;
 
-            std::fs::create_dir_all(&output)
-                .with_context(|| format!("creating output directory {}", output.display()))?;
+            std::fs::create_dir_all(&output).with_whatever_context(|_| {
+                format!("creating output directory {}", output.display())
+            })?;
 
             match lang {
                 Language::Rust => {
@@ -74,16 +78,20 @@ fn main() -> anyhow::Result<()> {
                     };
                     let generator = witffi_rust::RustGenerator::new(&resolve, world_id, config);
 
-                    let rust_code = generator.generate()?;
+                    let rust_code = generator
+                        .generate()
+                        .whatever_context("generating Rust code")?;
                     let rust_path = output.join("ffi.rs");
                     std::fs::write(&rust_path, &rust_code)
-                        .with_context(|| format!("writing {}", rust_path.display()))?;
+                        .with_whatever_context(|_| format!("writing {}", rust_path.display()))?;
                     eprintln!("Wrote {}", rust_path.display());
 
-                    let c_header = generator.generate_c_header()?;
+                    let c_header = generator
+                        .generate_c_header()
+                        .whatever_context("generating C header")?;
                     let header_path = output.join("ffi.h");
                     std::fs::write(&header_path, &c_header)
-                        .with_context(|| format!("writing {}", header_path.display()))?;
+                        .with_whatever_context(|_| format!("writing {}", header_path.display()))?;
                     eprintln!("Wrote {}", header_path.display());
                 }
                 Language::Swift => {
@@ -92,10 +100,12 @@ fn main() -> anyhow::Result<()> {
                         c_type_prefix: c_type_prefix.clone(),
                     };
                     let generator = witffi_swift::SwiftGenerator::new(&resolve, world_id, config);
-                    let swift_code = generator.generate()?;
+                    let swift_code = generator
+                        .generate()
+                        .whatever_context("generating Swift code")?;
                     let swift_path = output.join("Bindings.swift");
                     std::fs::write(&swift_path, &swift_code)
-                        .with_context(|| format!("writing {}", swift_path.display()))?;
+                        .with_whatever_context(|_| format!("writing {}", swift_path.display()))?;
                     eprintln!("Wrote {}", swift_path.display());
                 }
             }

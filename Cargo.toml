@@ -20,7 +20,7 @@ witffi-types = { path = "crates/witffi-types" }
 witffi-rust = { path = "crates/witffi-rust" }
 witffi-swift = { path = "crates/witffi-swift" }
 wit-parser = "0.245"
-anyhow = "1"
+snafu = "0.8"
 heck = "0.5"
 clap = { version = "4", features = ["derive"] }
 pretty_assertions = "1"

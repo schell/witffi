@@ -14,5 +14,5 @@ witffi-core.workspace = true
 witffi-rust.workspace = true
 witffi-swift.workspace = true
 wit-parser.workspace = true
-anyhow.workspace = true
+snafu.workspace = true
 clap.workspace = true
