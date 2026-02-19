@@ -87,7 +87,10 @@ fn main() -> anyhow::Result<()> {
                     eprintln!("Wrote {}", header_path.display());
                 }
                 Language::Swift => {
-                    let config = witffi_swift::generate::SwiftConfig::default();
+                    let config = witffi_swift::generate::SwiftConfig {
+                        c_prefix: c_prefix.clone(),
+                        c_type_prefix: c_type_prefix.clone(),
+                    };
                     let generator = witffi_swift::SwiftGenerator::new(&resolve, world_id, config);
                     let swift_code = generator.generate()?;
                     let swift_path = output.join("Bindings.swift");
