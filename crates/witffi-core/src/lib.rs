@@ -12,7 +12,7 @@ pub mod names;
 
 use std::path::Path;
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 pub use wit_parser;
 use wit_parser::{Resolve, UnresolvedPackageGroup, WorldId};
 

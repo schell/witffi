@@ -1,0 +1,6 @@
+[package]
+name = "witffi-types"
+description = "Shared repr(C) FFI types for witffi-generated code"
+version.workspace = true
+edition.workspace = true
+license.workspace = true

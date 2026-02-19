@@ -2,9 +2,11 @@
 resolver = "2"
 members = [
     "crates/witffi-core",
+    "crates/witffi-types",
     "crates/witffi-rust",
     "crates/witffi-swift",
     "crates/witffi-cli",
+    "examples/eip681-ffi",
 ]
 
 [workspace.package]
@@ -14,6 +16,7 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 witffi-core = { path = "crates/witffi-core" }
+witffi-types = { path = "crates/witffi-types" }
 witffi-rust = { path = "crates/witffi-rust" }
 witffi-swift = { path = "crates/witffi-swift" }
 wit-parser = "0.245"

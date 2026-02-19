@@ -13,3 +13,4 @@ heck.workspace = true
 
 [dev-dependencies]
 pretty_assertions.workspace = true
+witffi-types.workspace = true

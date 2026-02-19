@@ -1,0 +1,17 @@
+[package]
+name = "eip681-ffi"
+description = "Example: EIP-681 parser exposed as a C FFI library using witffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+eip681 = { git = "https://github.com/zcash/librustzcash" }
+witffi-types.workspace = true
+
+[build-dependencies]
+witffi-core.workspace = true
+witffi-rust.workspace = true

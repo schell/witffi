@@ -22,3 +22,9 @@ target
 
 # Don't include my session files
 SESSION.md
+
+# Generated C headers (produced by build.rs)
+examples/eip681-ffi/ffi.h
+
+# Test output directory (from compilation tests)
+test.rs/
