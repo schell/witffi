@@ -4,9 +4,8 @@
 #
 # This script:
 #   1. Builds the Rust FFI library (eip681-ffi) in release mode
-#   2. Generates Swift bindings using the witffi CLI
-#   3. Copies C headers into the Swift package
-#   4. Builds the Swift package
+#   2. Generates Swift bindings + C headers using the witffi CLI
+#   3. Builds the Swift package
 #
 # Prerequisites: Rust toolchain (cargo) and Swift toolchain (swift) installed.
 #
@@ -25,25 +24,25 @@ ROOT_DIR="$SCRIPT_DIR/../.."
 echo "==> Building Rust FFI library (release)..."
 cargo build --release -p eip681-ffi --manifest-path "$ROOT_DIR/Cargo.toml"
 
-# ---- Step 2: Generate Swift bindings ----
+# ---- Step 2: Generate Swift bindings + C headers ----
 
-echo "==> Generating Swift bindings..."
+INCLUDE_DIR="$SCRIPT_DIR/Sources/CZcashEip681/include"
+SWIFT_DIR="$SCRIPT_DIR/Sources/Eip681"
+
+mkdir -p "$INCLUDE_DIR" "$SWIFT_DIR"
+
+echo "==> Generating Swift bindings and C headers..."
 cargo run --release -p witffi-cli --manifest-path "$ROOT_DIR/Cargo.toml" -- \
     generate \
     --wit "$ROOT_DIR/wit/eip681.wit" \
     --lang swift \
-    --output "$SCRIPT_DIR/Sources/Eip681" \
+    --output "$INCLUDE_DIR" \
     --c-prefix zcash_eip681
 
-# ---- Step 3: Copy C headers ----
+# Move the Swift source out of the C headers directory.
+mv "$INCLUDE_DIR/Bindings.swift" "$SWIFT_DIR/"
 
-echo "==> Copying C headers..."
-INCLUDE_DIR="$SCRIPT_DIR/Sources/CZcashEip681/include"
-mkdir -p "$INCLUDE_DIR"
-cp "$ROOT_DIR/crates/witffi-types/witffi_types.h" "$INCLUDE_DIR/"
-cp "$ROOT_DIR/examples/eip681-ffi/ffi.h" "$INCLUDE_DIR/"
-
-# ---- Step 4: Build / test / run ----
+# ---- Step 3: Build / test / run ----
 
 cd "$SCRIPT_DIR"
 

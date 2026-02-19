@@ -13,3 +13,10 @@
 pub mod generate;
 
 pub use generate::RustGenerator;
+
+/// The contents of `witffi_types.h`, embedded at compile time.
+///
+/// Consumers (CLI, build scripts) can write this to disk alongside the
+/// generated `ffi.h` so that downstream C / Swift / Kotlin code finds
+/// both headers in a single directory.
+pub const WITFFI_TYPES_HEADER: &str = include_str!("../../witffi-types/witffi_types.h");

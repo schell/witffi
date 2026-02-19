@@ -33,4 +33,10 @@ fn main() {
     // Copy the header to the crate root for easy consumption
     let crate_header = cargo_manifest_dir.join("ffi.h");
     std::fs::write(&crate_header, &c_header).expect("failed to write ffi.h to crate root");
+
+    // Copy the shared types header alongside ffi.h so downstream consumers
+    // can glob-copy *.h and get everything they need.
+    let types_header = cargo_manifest_dir.join("witffi_types.h");
+    std::fs::write(&types_header, witffi_rust::WITFFI_TYPES_HEADER)
+        .expect("failed to write witffi_types.h to crate root");
 }

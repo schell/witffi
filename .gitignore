@@ -32,6 +32,4 @@ test.rs/
 examples/eip681-swift/.build/
 examples/eip681-swift/.swiftpm/
 
-# Generated C headers copied by build.sh
-examples/eip681-swift/Sources/CZcashEip681/include/ffi.h
-examples/eip681-swift/Sources/CZcashEip681/include/witffi_types.h
+.DS_Store

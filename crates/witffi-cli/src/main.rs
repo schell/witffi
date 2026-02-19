@@ -70,43 +70,59 @@ fn main() -> Result<()> {
                 format!("creating output directory {}", output.display())
             })?;
 
+            // Both languages need the C header and the shared types header.
+            let rust_config = witffi_rust::generate::RustConfig {
+                c_prefix: c_prefix.clone(),
+                c_type_prefix: c_type_prefix.clone(),
+            };
+            let rust_generator = witffi_rust::RustGenerator::new(&resolve, world_id, rust_config);
+
+            let c_header = rust_generator
+                .generate_c_header()
+                .whatever_context("generating C header")?;
+            let header_path = output.join("ffi.h");
+            std::fs::write(&header_path, &c_header)
+                .with_whatever_context(|_| format!("writing {}", header_path.display()))?;
+            eprintln!("Wrote {}", header_path.display());
+
+            let types_path = output.join("witffi_types.h");
+            std::fs::write(&types_path, witffi_rust::WITFFI_TYPES_HEADER)
+                .with_whatever_context(|_| format!("writing {}", types_path.display()))?;
+            eprintln!("Wrote {}", types_path.display());
+
             match lang {
                 Language::Rust => {
-                    let config = witffi_rust::generate::RustConfig {
-                        c_prefix,
-                        c_type_prefix,
-                    };
-                    let generator = witffi_rust::RustGenerator::new(&resolve, world_id, config);
-
-                    let rust_code = generator
+                    let rust_code = rust_generator
                         .generate()
                         .whatever_context("generating Rust code")?;
                     let rust_path = output.join("ffi.rs");
                     std::fs::write(&rust_path, &rust_code)
                         .with_whatever_context(|_| format!("writing {}", rust_path.display()))?;
                     eprintln!("Wrote {}", rust_path.display());
-
-                    let c_header = generator
-                        .generate_c_header()
-                        .whatever_context("generating C header")?;
-                    let header_path = output.join("ffi.h");
-                    std::fs::write(&header_path, &c_header)
-                        .with_whatever_context(|_| format!("writing {}", header_path.display()))?;
-                    eprintln!("Wrote {}", header_path.display());
                 }
                 Language::Swift => {
-                    let config = witffi_swift::generate::SwiftConfig {
-                        c_prefix: c_prefix.clone(),
-                        c_type_prefix: c_type_prefix.clone(),
+                    let swift_config = witffi_swift::generate::SwiftConfig {
+                        c_prefix,
+                        c_type_prefix,
                     };
-                    let generator = witffi_swift::SwiftGenerator::new(&resolve, world_id, config);
-                    let swift_code = generator
+                    let swift_generator =
+                        witffi_swift::SwiftGenerator::new(&resolve, world_id, swift_config);
+
+                    let swift_code = swift_generator
                         .generate()
                         .whatever_context("generating Swift code")?;
                     let swift_path = output.join("Bindings.swift");
                     std::fs::write(&swift_path, &swift_code)
                         .with_whatever_context(|_| format!("writing {}", swift_path.display()))?;
                     eprintln!("Wrote {}", swift_path.display());
+
+                    let module_map = swift_generator
+                        .generate_module_map()
+                        .whatever_context("generating module map")?;
+                    let map_path = output.join("module.modulemap");
+                    std::fs::write(&map_path, &module_map)
+                        .with_whatever_context(|_| format!("writing {}", map_path.display()))?;
+                    eprintln!("Wrote {}", map_path.display());
                 }
             }
         }

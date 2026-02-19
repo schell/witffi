@@ -83,6 +83,32 @@ impl<'a> SwiftGenerator<'a> {
         Ok(out)
     }
 
+    /// Generate a Clang `module.modulemap` that wraps the C headers.
+    ///
+    /// The module name is derived from `c_prefix` (e.g. `"zcash_eip681"` →
+    /// `"CZcashEip681"`). The generated map references `ffi.h` and
+    /// `witffi_types.h`, which must be placed alongside the modulemap.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing to the output buffer fails.
+    pub fn generate_module_map(&self) -> Result<String, Error> {
+        let mut out = String::new();
+        self.generate_module_map_inner(&mut out)
+            .context(WriteSnafu)?;
+        Ok(out)
+    }
+
+    fn generate_module_map_inner(&self, out: &mut String) -> std::fmt::Result {
+        let module_name = self.c_module_name();
+        writeln!(out, "module {module_name} {{")?;
+        writeln!(out, "    header \"ffi.h\"")?;
+        writeln!(out, "    header \"witffi_types.h\"")?;
+        writeln!(out, "    export *")?;
+        writeln!(out, "}}")?;
+        Ok(())
+    }
+
     fn generate_inner(&self, out: &mut String) -> std::fmt::Result {
         self.generate_header(out)?;
         writeln!(out)?;
@@ -1245,5 +1271,34 @@ mod tests {
         };
         let generator2 = SwiftGenerator::new(&resolve, world_id, config2);
         assert_eq!(generator2.c_module_name(), "CMyCoolLib");
+    }
+
+    #[test]
+    fn test_generate_module_map() {
+        let (resolve, world_id) = load_eip681();
+
+        let config = SwiftConfig {
+            c_prefix: "zcash_eip681".to_string(),
+            c_type_prefix: "Ffi".to_string(),
+        };
+        let generator = SwiftGenerator::new(&resolve, world_id, config);
+        let module_map = generator.generate_module_map().unwrap();
+
+        assert!(
+            module_map.contains("module CZcashEip681"),
+            "module map should use the derived C module name"
+        );
+        assert!(
+            module_map.contains("header \"ffi.h\""),
+            "module map should reference ffi.h"
+        );
+        assert!(
+            module_map.contains("header \"witffi_types.h\""),
+            "module map should reference witffi_types.h"
+        );
+        assert!(
+            module_map.contains("export *"),
+            "module map should export all symbols"
+        );
     }
 }

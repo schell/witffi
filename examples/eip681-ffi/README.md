@@ -15,10 +15,11 @@ The pipeline has four steps:
    WIT (WebAssembly Interface Types) as a pure IDL — no WASM runtime involved.
 
 2. **`build.rs` generates code** at build time using the `witffi-core` and
-   `witffi-rust` library APIs. It produces two files:
+   `witffi-rust` library APIs. It produces three files:
    - `src/ffi.rs` — `#[repr(C)]` structs, a trait, free functions, and a
      `witffi_register!` macro
    - `ffi.h` — a C header declaring all types and exported functions
+   - `witffi_types.h` — shared FFI types header (copied from `witffi-types`)
 
 3. **`src/lib.rs` implements the trait** by converting between the `eip681`
    crate's domain types (`TransactionRequest`, `NativeRequest`, etc.) and the
@@ -35,6 +36,7 @@ The pipeline has four steps:
 | [`src/lib.rs`](src/lib.rs) | Trait implementation bridging eip681 to FFI types |
 | [`src/ffi.rs`](src/ffi.rs) | **Generated** — `repr(C)` types, trait, macro |
 | [`ffi.h`](ffi.h) | **Generated** — C header for all exported symbols |
+| [`witffi_types.h`](witffi_types.h) | **Generated** — Shared FFI types (`FfiByteSlice`, `FfiByteBuffer`) |
 
 ## Building
 
