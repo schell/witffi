@@ -123,8 +123,9 @@ This produces:
 1. **Define** your library's public API in a `.wit` file
 2. **Generate** FFI scaffolding with `witffi generate`
 3. **Implement** the generated Rust trait in your library
-4. **Compile** as a C-compatible dynamic or static library
-5. **Call** from Swift, C, or any language that supports the C ABI using the generated header
+4. **Compile** your library as a C-compatible dynamic or static library
+5. **Generate** FFI scaffolding for the host (Swift, etc)
+6. **Call** from Swift, C, or any language that supports the C ABI using the generated header
 
 ## Running Tests
 
@@ -134,6 +135,10 @@ cargo test
 
 Tests cover WIT loading, name convention mapping, and end-to-end code generation
 against the included `eip681.wit` example.
+
+## Examples
+
+See the [examples](examples/) directory. 
 
 ## License
 
