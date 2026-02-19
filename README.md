@@ -6,7 +6,7 @@ Generate native FFI bindings from [WIT](https://component-model.bytecodealliance
 C-ABI-compatible scaffolding code for cross-language interop. Rather than targeting the
 WebAssembly component model, it uses WIT purely as an IDL for **native** FFI.
 
-> **Status:** Early stage (v0.1.0). The Rust/C generator is functional. Swift generation is planned.
+> **Status:** Early stage (v0.1.0). The Rust/C generator is functional. Swift generation functional. Other language support is on-going.
 
 ## Supported Targets
 
