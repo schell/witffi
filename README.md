@@ -12,8 +12,11 @@ WebAssembly component model, it uses WIT purely as an IDL for **native** FFI.
 
 | Language | Output | Status |
 |----------|--------|--------|
-| Rust + C | `ffi.rs` + `ffi.h` | Working |
-| Swift | `Bindings.swift` | Planned |
+| Rust + C | `ffi.rs` + `ffi.h` | ✅ |
+| Swift | `Bindings.swift` | ✅ |
+| Kotlin | `Bindings.kt` | 🚧 |
+| Go | `Bindings.go` | 🚧 |
+| Typescript | `Bindings.ts` | 🚧 |
 
 ## What Gets Generated
 
