@@ -57,6 +57,17 @@ pub fn to_swift_ident(name: &str) -> String {
     escape_swift_keyword(&camel)
 }
 
+/// Convert a WIT kebab-case identifier to Kotlin PascalCase (for types).
+pub fn to_kotlin_type(name: &str) -> String {
+    name.to_pascal_case()
+}
+
+/// Convert a WIT kebab-case identifier to Kotlin camelCase (for functions, properties).
+pub fn to_kotlin_ident(name: &str) -> String {
+    let camel = name.to_lower_camel_case();
+    escape_kotlin_keyword(&camel)
+}
+
 /// Convert a WIT kebab-case identifier to Go PascalCase (exported).
 pub fn to_go_type(name: &str) -> String {
     name.to_pascal_case()
@@ -82,6 +93,23 @@ fn escape_rust_keyword(name: &str) -> String {
         | "dyn" | "abstract" | "become" | "box" | "do" | "final" | "macro" | "override"
         | "priv" | "typeof" | "unsized" | "virtual" | "yield" | "try" => {
             format!("{name}_")
+        }
+        _ => name.to_string(),
+    }
+}
+
+/// Escape Kotlin reserved keywords by wrapping in backticks.
+fn escape_kotlin_keyword(name: &str) -> String {
+    match name {
+        // Hard keywords
+        "as" | "break" | "class" | "continue" | "do" | "else" | "false" | "for" | "fun" | "if"
+        | "in" | "interface" | "is" | "null" | "object" | "package" | "return" | "super"
+        | "this" | "throw" | "true" | "try" | "typealias" | "typeof" | "val" | "var" | "when"
+        | "while"
+        // Soft keywords used as identifiers in certain contexts
+        | "by" | "catch" | "companion" | "constructor" | "data" | "dynamic" | "finally"
+        | "import" | "init" | "inner" | "it" | "out" | "sealed" | "where" => {
+            format!("`{name}`")
         }
         _ => name.to_string(),
     }
@@ -141,6 +169,31 @@ mod tests {
         assert_eq!(to_swift_type("transaction-request"), "TransactionRequest");
         assert_eq!(to_swift_ident("chain-id"), "chainId");
         assert_eq!(to_swift_ident("self"), "`self`");
+    }
+
+    #[test]
+    fn test_kotlin_names() {
+        assert_eq!(to_kotlin_type("transaction-request"), "TransactionRequest");
+        assert_eq!(to_kotlin_type("native-request"), "NativeRequest");
+        assert_eq!(to_kotlin_type("u256"), "U256");
+        assert_eq!(to_kotlin_ident("chain-id"), "chainId");
+        assert_eq!(to_kotlin_ident("recipient-address"), "recipientAddress");
+        assert_eq!(to_kotlin_ident("value-atomic"), "valueAtomic");
+        // Keyword escaping
+        assert_eq!(to_kotlin_ident("when"), "`when`");
+        assert_eq!(to_kotlin_ident("fun"), "`fun`");
+        assert_eq!(to_kotlin_ident("val"), "`val`");
+        assert_eq!(to_kotlin_ident("var"), "`var`");
+        assert_eq!(to_kotlin_ident("is"), "`is`");
+        assert_eq!(to_kotlin_ident("in"), "`in`");
+        assert_eq!(to_kotlin_ident("object"), "`object`");
+        assert_eq!(to_kotlin_ident("data"), "`data`");
+        assert_eq!(to_kotlin_ident("sealed"), "`sealed`");
+        assert_eq!(to_kotlin_ident("companion"), "`companion`");
+        assert_eq!(to_kotlin_ident("it"), "`it`");
+        assert_eq!(to_kotlin_ident("out"), "`out`");
+        // Non-keywords pass through
+        assert_eq!(to_kotlin_ident("foo-bar"), "fooBar");
     }
 
     #[test]

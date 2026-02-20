@@ -13,6 +13,7 @@ path = "src/main.rs"
 witffi-core.workspace = true
 witffi-rust.workspace = true
 witffi-swift.workspace = true
+witffi-kotlin.workspace = true
 wit-parser.workspace = true
 snafu.workspace = true
 clap.workspace = true

@@ -16,6 +16,8 @@ fn main() {
     let config = witffi_rust::generate::RustConfig {
         c_prefix: "zcash_eip681".to_string(),
         c_type_prefix: "Ffi".to_string(),
+        kotlin_package: Some("zcash.eip681".to_string()),
+        library_name: Some("eip681ffi".to_string()),
     };
 
     let generator = witffi_rust::RustGenerator::new(&resolve, world_id, config);

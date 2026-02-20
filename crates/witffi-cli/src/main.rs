@@ -40,15 +40,32 @@ enum Commands {
         /// Prefix for C type names (e.g. "Ffi").
         #[arg(long, default_value = "Ffi")]
         c_type_prefix: String,
+
+        /// Kotlin package name (e.g. "zcash.eip681").
+        ///
+        /// If not specified, derived from the WIT package name.
+        /// Used by both `--lang rust` (for JNI class paths in the macro)
+        /// and `--lang kotlin` (for the `package` declaration).
+        #[arg(long)]
+        kotlin_package: Option<String>,
+
+        /// Library name for `System.loadLibrary()` / JNI loading.
+        ///
+        /// Used by both `--lang rust` (embedded in JNI macro) and
+        /// `--lang kotlin` (in the `Bindings.kt` init block).
+        #[arg(long)]
+        lib_name: Option<String>,
     },
 }
 
 #[derive(ValueEnum, Clone, Debug)]
 enum Language {
-    /// Generate Rust extern "C" scaffolding + C header.
+    /// Generate Rust scaffolding (idiomatic types, trait, dual macros) + C header.
     Rust,
     /// Generate Swift bindings.
     Swift,
+    /// Generate Kotlin/Android bindings (Bindings.kt only).
+    Kotlin,
 }
 
 #[snafu::report]
@@ -62,6 +79,8 @@ fn main() -> Result<()> {
             output,
             c_prefix,
             c_type_prefix,
+            kotlin_package,
+            lib_name,
         } => {
             let (resolve, world_id) = witffi_core::load_wit(&wit)
                 .with_whatever_context(|_| format!("loading WIT from {}", wit.display()))?;
@@ -70,28 +89,17 @@ fn main() -> Result<()> {
                 format!("creating output directory {}", output.display())
             })?;
 
-            // Both languages need the C header and the shared types header.
-            let rust_config = witffi_rust::generate::RustConfig {
-                c_prefix: c_prefix.clone(),
-                c_type_prefix: c_type_prefix.clone(),
-            };
-            let rust_generator = witffi_rust::RustGenerator::new(&resolve, world_id, rust_config);
-
-            let c_header = rust_generator
-                .generate_c_header()
-                .whatever_context("generating C header")?;
-            let header_path = output.join("ffi.h");
-            std::fs::write(&header_path, &c_header)
-                .with_whatever_context(|_| format!("writing {}", header_path.display()))?;
-            eprintln!("Wrote {}", header_path.display());
-
-            let types_path = output.join("witffi_types.h");
-            std::fs::write(&types_path, witffi_rust::WITFFI_TYPES_HEADER)
-                .with_whatever_context(|_| format!("writing {}", types_path.display()))?;
-            eprintln!("Wrote {}", types_path.display());
-
             match lang {
                 Language::Rust => {
+                    let rust_config = witffi_rust::generate::RustConfig {
+                        c_prefix: c_prefix.clone(),
+                        c_type_prefix: c_type_prefix.clone(),
+                        kotlin_package,
+                        library_name: lib_name,
+                    };
+                    let rust_generator =
+                        witffi_rust::RustGenerator::new(&resolve, world_id, rust_config);
+
                     let rust_code = rust_generator
                         .generate()
                         .whatever_context("generating Rust code")?;
@@ -99,8 +107,45 @@ fn main() -> Result<()> {
                     std::fs::write(&rust_path, &rust_code)
                         .with_whatever_context(|_| format!("writing {}", rust_path.display()))?;
                     eprintln!("Wrote {}", rust_path.display());
+
+                    let c_header = rust_generator
+                        .generate_c_header()
+                        .whatever_context("generating C header")?;
+                    let header_path = output.join("ffi.h");
+                    std::fs::write(&header_path, &c_header)
+                        .with_whatever_context(|_| format!("writing {}", header_path.display()))?;
+                    eprintln!("Wrote {}", header_path.display());
+
+                    let types_path = output.join("witffi_types.h");
+                    std::fs::write(&types_path, witffi_rust::WITFFI_TYPES_HEADER)
+                        .with_whatever_context(|_| format!("writing {}", types_path.display()))?;
+                    eprintln!("Wrote {}", types_path.display());
                 }
+
                 Language::Swift => {
+                    // Swift needs C headers as well as Swift bindings.
+                    let rust_config = witffi_rust::generate::RustConfig {
+                        c_prefix: c_prefix.clone(),
+                        c_type_prefix: c_type_prefix.clone(),
+                        kotlin_package: None,
+                        library_name: None,
+                    };
+                    let rust_generator =
+                        witffi_rust::RustGenerator::new(&resolve, world_id, rust_config);
+
+                    let c_header = rust_generator
+                        .generate_c_header()
+                        .whatever_context("generating C header")?;
+                    let header_path = output.join("ffi.h");
+                    std::fs::write(&header_path, &c_header)
+                        .with_whatever_context(|_| format!("writing {}", header_path.display()))?;
+                    eprintln!("Wrote {}", header_path.display());
+
+                    let types_path = output.join("witffi_types.h");
+                    std::fs::write(&types_path, witffi_rust::WITFFI_TYPES_HEADER)
+                        .with_whatever_context(|_| format!("writing {}", types_path.display()))?;
+                    eprintln!("Wrote {}", types_path.display());
+
                     let swift_config = witffi_swift::generate::SwiftConfig {
                         c_prefix,
                         c_type_prefix,
@@ -123,6 +168,23 @@ fn main() -> Result<()> {
                     std::fs::write(&map_path, &module_map)
                         .with_whatever_context(|_| format!("writing {}", map_path.display()))?;
                     eprintln!("Wrote {}", map_path.display());
+                }
+
+                Language::Kotlin => {
+                    let kotlin_config = witffi_kotlin::generate::KotlinConfig {
+                        kotlin_package,
+                        lib_name: lib_name.unwrap_or_else(|| "witffi".to_string()),
+                    };
+                    let kotlin_generator =
+                        witffi_kotlin::KotlinGenerator::new(&resolve, world_id, kotlin_config);
+
+                    let kotlin_code = kotlin_generator
+                        .generate()
+                        .whatever_context("generating Kotlin code")?;
+                    let kotlin_path = output.join("Bindings.kt");
+                    std::fs::write(&kotlin_path, &kotlin_code)
+                        .with_whatever_context(|_| format!("writing {}", kotlin_path.display()))?;
+                    eprintln!("Wrote {}", kotlin_path.display());
                 }
             }
         }

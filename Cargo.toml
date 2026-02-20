@@ -5,6 +5,7 @@ members = [
     "crates/witffi-types",
     "crates/witffi-rust",
     "crates/witffi-swift",
+    "crates/witffi-kotlin",
     "crates/witffi-cli",
     "examples/eip681-ffi",
 ]
@@ -19,6 +20,7 @@ witffi-core = { path = "crates/witffi-core" }
 witffi-types = { path = "crates/witffi-types" }
 witffi-rust = { path = "crates/witffi-rust" }
 witffi-swift = { path = "crates/witffi-swift" }
+witffi-kotlin = { path = "crates/witffi-kotlin" }
 wit-parser = "0.245"
 snafu = "0.8"
 heck = "0.5"
