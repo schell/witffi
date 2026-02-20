@@ -79,6 +79,19 @@ Error convention: `zcash_eip681_parser_parse` returns `NULL` on error. Call
 `zcash_eip681_last_error_length()` and `zcash_eip681_error_message_utf8()` to
 retrieve the error string.
 
+## Kotlin/JNI support
+
+This crate also generates Kotlin/JNI bindings alongside the C FFI. The
+`build.rs` produces:
+
+- `witffi_register_jni!(Impl)` macro in `src/ffi.rs` — JNI entry points that
+  convert between Rust and Java types via `jni` crate v0.21
+- `../eip681-kotlin/src/Bindings.kt` — Kotlin model classes and a JNI bridge
+  class
+
+See [`../eip681-kotlin/`](../eip681-kotlin/) for a self-contained demo that
+parses EIP-681 URIs from Kotlin via JNI.
+
 ## Adapting for your own crate
 
 To expose a different Rust library as a C FFI using witffi:
@@ -92,3 +105,5 @@ To expose a different Rust library as a C FFI using witffi:
    `c_type_prefix` to match your naming convention
 5. Implement the generated trait, converting your domain types to the FFI types
 6. Call `witffi_register!(YourImpl)` to stamp out the `extern "C"` functions
+7. Optionally add `witffi-kotlin` and `jni` dependencies and call
+   `witffi_register_jni!(YourImpl)` for Kotlin/Android support

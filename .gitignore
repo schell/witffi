@@ -32,4 +32,7 @@ test.rs/
 examples/eip681-swift/.build/
 examples/eip681-swift/.swiftpm/
 
+# Kotlin build artifacts
+examples/eip681-kotlin/demo.jar
+
 .DS_Store

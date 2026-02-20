@@ -12,7 +12,8 @@
 //!    and `witffi_register_ffi!` / `witffi_register_jni!` macros
 //! 3. This file implements the trait, converting between `eip681` domain types
 //!    and the generated idiomatic types
-//! 4. `witffi_register!(Impl)` stamps out the actual `extern "C"` symbols
+//! 4. `witffi_register!(Impl)` stamps out the `extern "C"` symbols (C-ABI)
+//! 5. `witffi_register_jni!(Impl)` stamps out `Java_` JNI entry points
 #![allow(non_camel_case_types, non_snake_case, unused_unsafe)]
 
 // build.rs generates src/ffi.rs — pull it in as a module.
@@ -80,8 +81,11 @@ impl Eip681 for Impl {
     }
 }
 
-// Stamp out all `extern "C"` FFI functions.
+// Stamp out `extern "C"` FFI functions (for Swift, Go, C consumers).
 witffi_register!(Impl);
+
+// Stamp out `Java_` JNI entry points (for Kotlin/Android consumers).
+witffi_register_jni!(Impl);
 
 // ---- Tests ----
 

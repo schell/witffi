@@ -305,7 +305,6 @@ macro_rules! witffi_register {
 #[macro_export]
 macro_rules! witffi_register_jni {
     ($impl_type:ty) => {
-
         // ---- JNI conversion helpers ----
 
         fn to_jni_native_request<'local>(
@@ -313,11 +312,36 @@ macro_rules! witffi_register_jni {
             value: &NativeRequest,
         ) -> jni::errors::Result<jni::objects::JObject<'local>> {
             let _schema_prefix = env.new_string(&value.schema_prefix)?;
-            let _chain_id = match &value.chain_id { Some(v) => env.new_object("java/lang/Long", "(J)V", &[jni::objects::JValue::Long(*v as i64)])?, None => jni::objects::JObject::null() };
+            let _chain_id = match &value.chain_id {
+                Some(v) => env.new_object(
+                    "java/lang/Long",
+                    "(J)V",
+                    &[jni::objects::JValue::Long(*v as i64)],
+                )?,
+                None => jni::objects::JObject::null(),
+            };
             let _recipient_address = env.new_string(&value.recipient_address)?;
-            let _value_atomic = match &value.value_atomic { Some(v) => { let _v = env.byte_array_from_slice(&v)?; jni::objects::JObject::from(_v) }, None => jni::objects::JObject::null() };
-            let _gas_limit = match &value.gas_limit { Some(v) => { let _v = env.byte_array_from_slice(&v)?; jni::objects::JObject::from(_v) }, None => jni::objects::JObject::null() };
-            let _gas_price = match &value.gas_price { Some(v) => { let _v = env.byte_array_from_slice(&v)?; jni::objects::JObject::from(_v) }, None => jni::objects::JObject::null() };
+            let _value_atomic = match &value.value_atomic {
+                Some(v) => {
+                    let _v = env.byte_array_from_slice(&v)?;
+                    jni::objects::JObject::from(_v)
+                }
+                None => jni::objects::JObject::null(),
+            };
+            let _gas_limit = match &value.gas_limit {
+                Some(v) => {
+                    let _v = env.byte_array_from_slice(&v)?;
+                    jni::objects::JObject::from(_v)
+                }
+                None => jni::objects::JObject::null(),
+            };
+            let _gas_price = match &value.gas_price {
+                Some(v) => {
+                    let _v = env.byte_array_from_slice(&v)?;
+                    jni::objects::JObject::from(_v)
+                }
+                None => jni::objects::JObject::null(),
+            };
             let _display = env.new_string(&value.display)?;
             let args: &[jni::objects::JValue] = &[
                 jni::objects::JValue::Object(&_schema_prefix),
@@ -328,14 +352,25 @@ macro_rules! witffi_register_jni {
                 jni::objects::JValue::Object(&_gas_price),
                 jni::objects::JValue::Object(&_display),
             ];
-            env.new_object("zcash/eip681/NativeRequest", "(Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;[B[B[BLjava/lang/String;)V", args)
+            env.new_object(
+                "zcash/eip681/NativeRequest",
+                "(Ljava/lang/String;Ljava/lang/Long;Ljava/lang/String;[B[B[BLjava/lang/String;)V",
+                args,
+            )
         }
 
         fn to_jni_erc20_request<'local>(
             env: &mut jni::JNIEnv<'local>,
             value: &Erc20Request,
         ) -> jni::errors::Result<jni::objects::JObject<'local>> {
-            let _chain_id = match &value.chain_id { Some(v) => env.new_object("java/lang/Long", "(J)V", &[jni::objects::JValue::Long(*v as i64)])?, None => jni::objects::JObject::null() };
+            let _chain_id = match &value.chain_id {
+                Some(v) => env.new_object(
+                    "java/lang/Long",
+                    "(J)V",
+                    &[jni::objects::JValue::Long(*v as i64)],
+                )?,
+                None => jni::objects::JObject::null(),
+            };
             let _token_contract_address = env.new_string(&value.token_contract_address)?;
             let _recipient_address = env.new_string(&value.recipient_address)?;
             let _value_atomic = env.byte_array_from_slice(&value.value_atomic)?;
@@ -347,7 +382,11 @@ macro_rules! witffi_register_jni {
                 jni::objects::JValue::Object(&_value_atomic),
                 jni::objects::JValue::Object(&_display),
             ];
-            env.new_object("zcash/eip681/Erc20Request", "(Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;[BLjava/lang/String;)V", args)
+            env.new_object(
+                "zcash/eip681/Erc20Request",
+                "(Ljava/lang/Long;Ljava/lang/String;Ljava/lang/String;[BLjava/lang/String;)V",
+                args,
+            )
         }
 
         fn to_jni_transaction_request<'local>(
@@ -357,34 +396,58 @@ macro_rules! witffi_register_jni {
             match value {
                 TransactionRequest::Native(inner) => {
                     let _inner = to_jni_native_request(env, &inner)?;
-                    env.new_object("zcash/eip681/TransactionRequest$Native", "(Lzcash/eip681/NativeRequest;)V", &[jni::objects::JValue::Object(&_inner)])
+                    env.new_object(
+                        "zcash/eip681/TransactionRequest$Native",
+                        "(Lzcash/eip681/NativeRequest;)V",
+                        &[jni::objects::JValue::Object(&_inner)],
+                    )
                 }
                 TransactionRequest::Erc20(inner) => {
                     let _inner = to_jni_erc20_request(env, &inner)?;
-                    env.new_object("zcash/eip681/TransactionRequest$Erc20", "(Lzcash/eip681/Erc20Request;)V", &[jni::objects::JValue::Object(&_inner)])
+                    env.new_object(
+                        "zcash/eip681/TransactionRequest$Erc20",
+                        "(Lzcash/eip681/Erc20Request;)V",
+                        &[jni::objects::JValue::Object(&_inner)],
+                    )
                 }
                 TransactionRequest::Unrecognised(inner) => {
                     let _inner = env.new_string(&inner)?;
-                    env.new_object("zcash/eip681/TransactionRequest$Unrecognised", "(Ljava/lang/String;)V", &[jni::objects::JValue::Object(&_inner)])
+                    env.new_object(
+                        "zcash/eip681/TransactionRequest$Unrecognised",
+                        "(Ljava/lang/String;)V",
+                        &[jni::objects::JValue::Object(&_inner)],
+                    )
                 }
             }
         }
 
         #[unsafe(no_mangle)]
-        pub extern "C" fn Java_zcash_eip681_Eip681_00024Companion_nativeParserParse<'local>(
+        pub extern "C" fn Java_zcash_eip681_Eip681_nativeParserParse<'local>(
             mut env: jni::JNIEnv<'local>,
             _class: jni::objects::JClass<'local>,
             input: jni::objects::JString<'local>,
         ) -> jni::sys::jobject {
+            let env = &mut env;
+
+            let input_rust: String = match env.get_string(&input) {
+                Ok(s) => s.into(),
+                Err(e) => {
+                    let _ = env.throw_new("java/lang/RuntimeException", format!("{e}"));
+                    return std::ptr::null_mut();
+                }
+            };
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let input_rust: String = env.get_string(&input).map_err(|e| e.to_string())?.into();
-                <$impl_type>::parser_parse(input_rust)
+                <$impl_type>::parser_parse(&input_rust)
             }));
 
             match result {
                 Ok(Ok(value)) => {
-                    match (|| -> jni::errors::Result<_> { Ok(to_jni_transaction_request(env, &value)?) })() {
-                        Ok(obj) => obj.into_raw(),
+                    let mut convert = || -> jni::errors::Result<jni::sys::jobject> {
+                        let obj = to_jni_transaction_request(env, &value)?;
+                        Ok(obj.into_raw())
+                    };
+                    match convert() {
+                        Ok(ptr) => ptr,
                         Err(e) => {
                             let _ = env.throw_new("java/lang/RuntimeException", format!("{e}"));
                             std::ptr::null_mut()
@@ -401,6 +464,5 @@ macro_rules! witffi_register_jni {
                 }
             }
         }
-
     };
 }

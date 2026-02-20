@@ -1302,7 +1302,6 @@ impl<'a> RustGenerator<'a> {
         writeln!(out, "#[macro_export]")?;
         writeln!(out, "macro_rules! witffi_register_jni {{")?;
         writeln!(out, "    ($impl_type:ty) => {{")?;
-        writeln!(out)?;
 
         // Generate JNI conversion helpers for each record/variant type
         self.generate_jni_conversion_helpers(out, &kotlin_package)?;
@@ -1313,6 +1312,10 @@ impl<'a> RustGenerator<'a> {
             self.generate_jni_entry_point(out, ef, &jni_class_path, &world_class)?;
         }
 
+        // Trim trailing blank line before closing brace
+        if out.ends_with("\n\n") {
+            out.pop();
+        }
         writeln!(out, "    }};")?;
         writeln!(out, "}}")?;
 
@@ -1648,14 +1651,16 @@ impl<'a> RustGenerator<'a> {
         let result_decomposed = self.decompose_result(&ef.function.result);
 
         // Build the JNI function name
-        // Convention: Java_{package}_{Class}_00024Companion_native{Method}
+        // The Kotlin generator emits @JvmStatic on the companion's native method,
+        // so the JVM resolves it as a static method on the outer class.
+        // Convention: Java_{package}_{Class}_native{Method}
         let method_pascal = names::to_rust_type(&if ef.interface_name.is_empty() {
             ef.function_name.clone()
         } else {
             format!("{}-{}", ef.interface_name, ef.function_name)
         });
         let jni_func_name = format!(
-            "Java_{}_{world_class}_00024Companion_native{method_pascal}",
+            "Java_{}_{world_class}_native{method_pascal}",
             jni_class_path.replace('/', "_"),
         );
 
@@ -1691,24 +1696,43 @@ impl<'a> RustGenerator<'a> {
             writeln!(out, "        ) -> {jni_return} {{")?;
         }
 
-        writeln!(
-            out,
-            "            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {{"
-        )?;
+        // Rebind env as &mut so it can be used before and after catch_unwind
+        // without being moved into the closure.
+        writeln!(out, "            let env = &mut env;")?;
+        writeln!(out)?;
 
-        // Convert JNI params to Rust types
+        // Step 1: Convert JNI params to Rust types (uses env directly)
+        let early_return = if jni_return == "()" {
+            "return".to_string()
+        } else if jni_return == "jni::sys::jobject" {
+            "return std::ptr::null_mut()".to_string()
+        } else {
+            "return Default::default()".to_string()
+        };
         for p in &ef.function.params {
             let name = names::to_rust_ident(&p.name);
-            self.generate_jni_param_conversion(out, &name, &p.ty)?;
+            self.generate_jni_param_conversion_safe(out, &name, &p.ty, &early_return)?;
         }
 
         let rust_args: Vec<String> = ef
             .function
             .params
             .iter()
-            .map(|p| format!("{}_rust", names::to_rust_ident(&p.name)))
+            .map(|p| {
+                let name = format!("{}_rust", names::to_rust_ident(&p.name));
+                if self.jni_arg_needs_borrow(&p.ty) {
+                    format!("&{name}")
+                } else {
+                    name
+                }
+            })
             .collect();
 
+        // Step 2: Call the trait method inside catch_unwind (pure Rust, no env)
+        writeln!(
+            out,
+            "            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {{"
+        )?;
         writeln!(
             out,
             "                <$impl_type>::{trait_method}({})",
@@ -1717,17 +1741,22 @@ impl<'a> RustGenerator<'a> {
         writeln!(out, "            }}));")?;
         writeln!(out)?;
 
-        // Handle result
+        // Step 3: Handle result and convert to JNI (uses env directly)
         if let Some((ref ok_ty, _)) = result_decomposed {
             writeln!(out, "            match result {{")?;
             writeln!(out, "                Ok(Ok(value)) => {{")?;
             if let Some(ty) = ok_ty {
                 let jni_conv = self.generate_to_jni_field_expr(ty, "value");
+                // Wrap conversion in a closure so `?` works inside it
                 writeln!(
                     out,
-                    "                    match (|| -> jni::errors::Result<_> {{ Ok({jni_conv}) }})() {{"
+                    "                    let mut convert = || -> jni::errors::Result<jni::sys::jobject> {{"
                 )?;
-                writeln!(out, "                        Ok(obj) => obj.into_raw(),")?;
+                writeln!(out, "                        let obj = {jni_conv};")?;
+                writeln!(out, "                        Ok(obj.into_raw())")?;
+                writeln!(out, "                    }};")?;
+                writeln!(out, "                    match convert() {{")?;
+                writeln!(out, "                        Ok(ptr) => ptr,")?;
                 writeln!(out, "                        Err(e) => {{")?;
                 writeln!(
                     out,
@@ -1737,7 +1766,7 @@ impl<'a> RustGenerator<'a> {
                 writeln!(out, "                        }}")?;
                 writeln!(out, "                    }}")?;
             } else {
-                writeln!(out, "                    // void ok — no return value")?;
+                writeln!(out, "                    std::ptr::null_mut()")?;
             }
             writeln!(out, "                }}")?;
             writeln!(out, "                Ok(Err(e)) => {{")?;
@@ -1809,32 +1838,64 @@ impl<'a> RustGenerator<'a> {
         }
     }
 
-    fn generate_jni_param_conversion(
+    /// Check if a JNI-converted arg needs a borrow when passed to the trait method.
+    ///
+    /// The JNI conversion produces owned types (e.g. `String`, `Vec<u8>`) but
+    /// the trait method uses borrowed types (`&str`, `&[u8]`) for these.
+    fn jni_arg_needs_borrow(&self, ty: &Type) -> bool {
+        match ty {
+            Type::String => true,
+            Type::Id(id) => {
+                let typedef = &self.resolve.types[*id];
+                match &typedef.kind {
+                    TypeDefKind::List(Type::U8) => true,
+                    TypeDefKind::Type(aliased) => self.jni_arg_needs_borrow(aliased),
+                    _ => false,
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// Generate JNI parameter conversion code that is safe to use outside of
+    /// a `Result`-returning context. Instead of using `?`, conversion errors
+    /// throw a Java exception and return early with `early_return`.
+    fn generate_jni_param_conversion_safe(
         &self,
         out: &mut String,
         name: &str,
         ty: &Type,
+        early_return: &str,
     ) -> std::fmt::Result {
         match ty {
             Type::String => {
                 writeln!(
                     out,
-                    "                let {name}_rust: String = env.get_string(&{name}).map_err(|e| e.to_string())?.into();"
+                    "            let {name}_rust: String = match env.get_string(&{name}) {{"
                 )?;
+                writeln!(out, "                Ok(s) => s.into(),")?;
+                writeln!(out, "                Err(e) => {{")?;
+                writeln!(
+                    out,
+                    "                    let _ = env.throw_new(\"java/lang/RuntimeException\", format!(\"{{e}}\"));"
+                )?;
+                writeln!(out, "                    {early_return};")?;
+                writeln!(out, "                }}")?;
+                writeln!(out, "            }};")?;
             }
             Type::Bool => {
-                writeln!(out, "                let {name}_rust = {name} != 0;")?;
+                writeln!(out, "            let {name}_rust = {name} != 0;")?;
             }
-            Type::U8 => writeln!(out, "                let {name}_rust = {name} as u8;")?,
-            Type::U16 => writeln!(out, "                let {name}_rust = {name} as u16;")?,
-            Type::U32 => writeln!(out, "                let {name}_rust = {name} as u32;")?,
-            Type::U64 => writeln!(out, "                let {name}_rust = {name} as u64;")?,
-            Type::S8 => writeln!(out, "                let {name}_rust = {name} as i8;")?,
-            Type::S16 => writeln!(out, "                let {name}_rust = {name} as i16;")?,
-            Type::S32 => writeln!(out, "                let {name}_rust = {name} as i32;")?,
-            Type::S64 => writeln!(out, "                let {name}_rust = {name} as i64;")?,
+            Type::U8 => writeln!(out, "            let {name}_rust = {name} as u8;")?,
+            Type::U16 => writeln!(out, "            let {name}_rust = {name} as u16;")?,
+            Type::U32 => writeln!(out, "            let {name}_rust = {name} as u32;")?,
+            Type::U64 => writeln!(out, "            let {name}_rust = {name} as u64;")?,
+            Type::S8 => writeln!(out, "            let {name}_rust = {name} as i8;")?,
+            Type::S16 => writeln!(out, "            let {name}_rust = {name} as i16;")?,
+            Type::S32 => writeln!(out, "            let {name}_rust = {name} as i32;")?,
+            Type::S64 => writeln!(out, "            let {name}_rust = {name} as i64;")?,
             Type::F32 | Type::F64 => {
-                writeln!(out, "                let {name}_rust = {name};")?;
+                writeln!(out, "            let {name}_rust = {name};")?;
             }
             Type::Id(id) => {
                 let typedef = &self.resolve.types[*id];
@@ -1842,19 +1903,28 @@ impl<'a> RustGenerator<'a> {
                     TypeDefKind::List(Type::U8) => {
                         writeln!(
                             out,
-                            "                let {name}_rust = env.convert_byte_array(&{name}).map_err(|e| e.to_string())?;"
+                            "            let {name}_rust = match env.convert_byte_array(&{name}) {{"
                         )?;
+                        writeln!(out, "                Ok(v) => v,")?;
+                        writeln!(out, "                Err(e) => {{")?;
+                        writeln!(
+                            out,
+                            "                    let _ = env.throw_new(\"java/lang/RuntimeException\", format!(\"{{e}}\"));"
+                        )?;
+                        writeln!(out, "                    {early_return};")?;
+                        writeln!(out, "                }}")?;
+                        writeln!(out, "            }};")?;
                     }
                     TypeDefKind::Type(aliased) => {
-                        self.generate_jni_param_conversion(out, name, aliased)?;
+                        self.generate_jni_param_conversion_safe(out, name, aliased, early_return)?;
                     }
                     _ => {
-                        writeln!(out, "                let {name}_rust = {name};")?;
+                        writeln!(out, "            let {name}_rust = {name};")?;
                     }
                 }
             }
             _ => {
-                writeln!(out, "                let {name}_rust = {name};")?;
+                writeln!(out, "            let {name}_rust = {name};")?;
             }
         }
         Ok(())
@@ -2230,7 +2300,7 @@ mod tests {
 
         // JNI entry point
         assert!(
-            code.contains("Java_zcash_eip681_Eip681_00024Companion_nativeParserParse"),
+            code.contains("Java_zcash_eip681_Eip681_nativeParserParse"),
             "missing JNI entry point function name"
         );
 

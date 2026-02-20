@@ -24,5 +24,6 @@ witffi-kotlin = { path = "crates/witffi-kotlin" }
 wit-parser = "0.245"
 snafu = "0.8"
 heck = "0.5"
+jni = { version = "0.21", default-features = false }
 clap = { version = "4", features = ["derive"] }
 pretty_assertions = "1"
