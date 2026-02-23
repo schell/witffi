@@ -68,19 +68,50 @@ pub fn to_kotlin_ident(name: &str) -> String {
     escape_kotlin_keyword(&camel)
 }
 
-/// Convert a WIT kebab-case identifier to Go PascalCase (exported).
+/// Convert a WIT kebab-case identifier to Go PascalCase (exported types).
 pub fn to_go_type(name: &str) -> String {
-    name.to_pascal_case()
+    let pascal = name.to_pascal_case();
+    escape_go_keyword(&pascal)
 }
 
 /// Convert a WIT kebab-case identifier to Go PascalCase (exported functions).
 pub fn to_go_func(name: &str) -> String {
-    name.to_pascal_case()
+    let pascal = name.to_pascal_case();
+    escape_go_keyword(&pascal)
 }
 
-/// Convert a WIT kebab-case identifier to Go camelCase (unexported).
+/// Convert a WIT kebab-case identifier to Go PascalCase (exported struct fields).
 pub fn to_go_field(name: &str) -> String {
-    name.to_pascal_case()
+    let pascal = name.to_pascal_case();
+    escape_go_keyword(&pascal)
+}
+
+/// Convert a WIT kebab-case identifier to Go camelCase (unexported identifiers).
+///
+/// Used for marker interface names, conversion function parameters, and
+/// other identifiers that should not be exported from the Go package.
+pub fn to_go_ident(name: &str) -> String {
+    let camel = name.to_lower_camel_case();
+    escape_go_keyword(&camel)
+}
+
+/// Escape Go reserved keywords and predeclared identifiers by appending `_`.
+fn escape_go_keyword(name: &str) -> String {
+    match name {
+        // Reserved keywords
+        "break" | "case" | "chan" | "const" | "continue" | "default" | "defer" | "else"
+        | "fallthrough" | "for" | "func" | "go" | "goto" | "if" | "import" | "interface"
+        | "map" | "package" | "range" | "return" | "select" | "struct" | "switch" | "type"
+        | "var"
+        // Predeclared identifiers
+        | "len" | "cap" | "make" | "new" | "append" | "copy" | "delete" | "close" | "panic"
+        | "recover" | "print" | "println" | "error" | "string" | "bool" | "int" | "uint"
+        | "byte" | "rune" | "float32" | "float64" | "complex64" | "complex128" | "true"
+        | "false" | "nil" | "iota" => {
+            format!("{name}_")
+        }
+        _ => name.to_string(),
+    }
 }
 
 /// Escape Rust reserved keywords by appending `_`.
@@ -200,5 +231,17 @@ mod tests {
     fn test_go_names() {
         assert_eq!(to_go_type("transaction-request"), "TransactionRequest");
         assert_eq!(to_go_func("parse"), "Parse");
+        assert_eq!(to_go_field("chain-id"), "ChainId");
+        assert_eq!(to_go_field("recipient-address"), "RecipientAddress");
+        // Unexported identifiers
+        assert_eq!(to_go_ident("chain-id"), "chainId");
+        assert_eq!(to_go_ident("transaction-request"), "transactionRequest");
+        // Keyword escaping
+        assert_eq!(to_go_ident("type"), "type_");
+        assert_eq!(to_go_ident("string"), "string_");
+        assert_eq!(to_go_ident("map"), "map_");
+        assert_eq!(to_go_ident("error"), "error_");
+        // Non-keywords pass through
+        assert_eq!(to_go_ident("foo-bar"), "fooBar");
     }
 }

@@ -89,7 +89,7 @@ impl Eip681 for Impl {
 }
 
 // Stamp out `extern "C"` FFI functions (for Swift, Go, C consumers).
-witffi_register!(Impl);
+witffi_register_ffi!(Impl);
 
 // Stamp out `Java_` JNI entry points (for Kotlin/Android consumers).
 witffi_register_jni!(Impl);

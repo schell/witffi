@@ -1308,6 +1308,7 @@ dependencies = [
  "snafu",
  "wit-parser",
  "witffi-core",
+ "witffi-go",
  "witffi-kotlin",
  "witffi-rust",
  "witffi-swift",
@@ -1321,6 +1322,17 @@ dependencies = [
  "pretty_assertions",
  "snafu",
  "wit-parser",
+]
+
+[[package]]
+name = "witffi-go"
+version = "0.1.0"
+dependencies = [
+ "heck",
+ "pretty_assertions",
+ "snafu",
+ "wit-parser",
+ "witffi-core",
 ]
 
 [[package]]
@@ -1368,6 +1380,7 @@ dependencies = [
  "clap",
  "snafu",
  "witffi-core",
+ "witffi-go",
  "witffi-kotlin",
  "witffi-rust",
  "witffi-swift",

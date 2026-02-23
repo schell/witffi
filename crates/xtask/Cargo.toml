@@ -17,5 +17,6 @@ witffi-core.workspace = true
 witffi-rust.workspace = true
 witffi-swift.workspace = true
 witffi-kotlin.workspace = true
+witffi-go.workspace = true
 snafu.workspace = true
 clap.workspace = true

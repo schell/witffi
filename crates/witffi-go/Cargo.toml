@@ -1,0 +1,15 @@
+[package]
+name = "witffi-go"
+description = "Go bindings code generator for WIT interfaces"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+witffi-core.workspace = true
+wit-parser.workspace = true
+snafu.workspace = true
+heck.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true

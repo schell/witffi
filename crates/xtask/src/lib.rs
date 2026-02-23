@@ -1,9 +1,9 @@
 //! Build task library for eip681 FFI binding generation.
 //!
 //! Provides a single [`generate`] function that produces all FFI artifacts
-//! (Rust scaffolding, C headers, Kotlin bindings, Swift bindings) from the
-//! eip681 WIT definition. Configuration values and relative output paths are
-//! hardcoded to the eip681 example layout.
+//! (Rust scaffolding, C headers, Kotlin bindings, Go bindings, Swift bindings)
+//! from the eip681 WIT definition. Configuration values and relative output
+//! paths are hardcoded to the eip681 example layout.
 //!
 //! Used by both the `xtask` binary (`cargo xtask generate`) and
 //! `examples/eip681-ffi/build.rs`.
@@ -45,6 +45,10 @@ pub enum Error {
     GenerateSwift {
         source: witffi_swift::generate::Error,
     },
+
+    /// Failed to generate Go bindings.
+    #[snafu(display("failed to generate Go bindings"))]
+    GenerateGo { source: witffi_go::generate::Error },
 
     /// Failed to generate the Swift module map.
     #[snafu(display("failed to generate Swift module map"))]
@@ -91,6 +95,15 @@ const FFI_TYPES_HEADER: &str = "examples/eip681-ffi/witffi_types.h";
 /// Kotlin bindings output.
 const KOTLIN_OUTPUT: &str = "examples/eip681-kotlin/src/Bindings.kt";
 
+/// Go bindings output.
+const GO_OUTPUT: &str = "examples/eip681-go/bindings.go";
+
+/// Go C header output (CGo needs headers alongside .go files).
+const GO_FFI_HEADER: &str = "examples/eip681-go/ffi.h";
+
+/// Go witffi_types.h output.
+const GO_TYPES_HEADER: &str = "examples/eip681-go/witffi_types.h";
+
 /// Swift bindings output.
 const SWIFT_OUTPUT: &str = "examples/eip681-swift/Sources/Eip681/Bindings.swift";
 
@@ -109,8 +122,9 @@ const SWIFT_MODULE_MAP: &str =
 
 /// Generate all eip681 FFI artifacts from the WIT definition.
 ///
-/// Produces Rust scaffolding, C headers, Kotlin bindings, and Swift bindings,
-/// writing each to its expected location relative to `workspace_root`.
+/// Produces Rust scaffolding, C headers, Kotlin bindings, Go bindings, and
+/// Swift bindings, writing each to its expected location relative to
+/// `workspace_root`.
 ///
 /// # Errors
 ///
@@ -170,6 +184,32 @@ pub fn generate(workspace_root: &Path) -> Result<(), Error> {
     ensure_parent_dir(&kotlin_path)?;
     write_file(&kotlin_path, &kotlin_code)?;
     eprintln!("Wrote {}", kotlin_path.display());
+
+    // ---- Go bindings ----
+
+    let go_config = witffi_go::generate::GoConfig {
+        c_prefix: C_PREFIX.to_string(),
+        c_type_prefix: C_TYPE_PREFIX.to_string(),
+        go_package: None,
+        lib_name: LIBRARY_NAME.to_string(),
+    };
+    let go_generator = witffi_go::GoGenerator::new(&resolve, world_id, go_config);
+    let go_code = go_generator.generate().context(GenerateGoSnafu)?;
+
+    let go_path = workspace_root.join(GO_OUTPUT);
+    ensure_parent_dir(&go_path)?;
+    write_file(&go_path, &go_code)?;
+    eprintln!("Wrote {}", go_path.display());
+
+    // ---- Go C headers (CGo requires headers alongside .go source) ----
+
+    let go_header_path = workspace_root.join(GO_FFI_HEADER);
+    write_file(&go_header_path, &c_header)?;
+    eprintln!("Wrote {}", go_header_path.display());
+
+    let go_types_path = workspace_root.join(GO_TYPES_HEADER);
+    write_file(&go_types_path, witffi_rust::WITFFI_TYPES_HEADER)?;
+    eprintln!("Wrote {}", go_types_path.display());
 
     // ---- Swift bindings ----
 

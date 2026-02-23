@@ -66,6 +66,8 @@ enum Language {
     Swift,
     /// Generate Kotlin/Android bindings (Bindings.kt only).
     Kotlin,
+    /// Generate Go bindings via CGo.
+    Go,
 }
 
 #[snafu::report]
@@ -185,6 +187,24 @@ fn main() -> Result<()> {
                     std::fs::write(&kotlin_path, &kotlin_code)
                         .with_whatever_context(|_| format!("writing {}", kotlin_path.display()))?;
                     eprintln!("Wrote {}", kotlin_path.display());
+                }
+
+                Language::Go => {
+                    let go_config = witffi_go::generate::GoConfig {
+                        c_prefix: c_prefix.clone(),
+                        c_type_prefix: c_type_prefix.clone(),
+                        go_package: None,
+                        lib_name: lib_name.unwrap_or_else(|| "witffi".to_string()),
+                    };
+                    let go_generator = witffi_go::GoGenerator::new(&resolve, world_id, go_config);
+
+                    let go_code = go_generator
+                        .generate()
+                        .whatever_context("generating Go code")?;
+                    let go_path = output.join("bindings.go");
+                    std::fs::write(&go_path, &go_code)
+                        .with_whatever_context(|_| format!("writing {}", go_path.display()))?;
+                    eprintln!("Wrote {}", go_path.display());
                 }
             }
         }

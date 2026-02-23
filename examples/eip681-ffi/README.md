@@ -59,6 +59,16 @@ cargo test -p eip681-ffi
 Three integration tests verify parsing at the FFI layer: native ETH transfer,
 ERC-20 token transfer, and invalid input error handling.
 
+## Seeing the expanded C and Kotlin linkage code 
+
+The `eip681-ffi`'s `lib.rs` file calls two macros `witffi_register_ffi!` and `witffi_register_jni`.
+These macros stamp out the linkage between FFI and the `Eip681` trait (generated from the `.wit` file).
+To inspect the linkage code, use:
+
+```
+cargo expand -p eip681-ffi
+```
+
 ## Exported C API
 
 The library exports 8 C-compatible symbols (see [`ffi.h`](ffi.h) for full
