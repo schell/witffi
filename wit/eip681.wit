@@ -60,7 +60,15 @@ interface parser {
     parse: func(input: string) -> result<transaction-request, string>;
 }
 
+interface functions {
+    use types.{u256};
+
+    /// Convert a u256 type to a string for display
+    u256-to-string: func(input: u256) -> string;
+}
+
 /// The eip681 world exports a parser for EIP-681 URIs.
 world eip681 {
     export parser;
+    export functions;
 }

@@ -47,12 +47,15 @@ pub enum TransactionRequest {
     Unrecognised(String),
 }
 
+pub type U256 = Vec<u8>;
+
 // ---- Implementation trait ----
 
 /// Trait that library authors implement to provide the FFI functions.
 /// Each method corresponds to a WIT exported function.
 pub trait Eip681 {
     fn parser_parse(input: &str) -> Result<TransactionRequest, String>;
+    fn functions_u256_to_string(input: &[u8]) -> String;
 }
 // ---- C-ABI Registration macro ----
 
@@ -132,6 +135,8 @@ macro_rules! witffi_register_ffi {
             pub erc20: *mut FfiTransactionRequestErc20Payload,
             pub unrecognised: *mut FfiTransactionRequestUnrecognisedPayload,
         }
+
+        pub type FfiU256 = witffi_types::FfiByteBuffer;
 
         // ---- Conversions: idiomatic -> repr(C) ----
 
@@ -270,6 +275,32 @@ macro_rules! witffi_register_ffi {
                     };
                     LAST_ERROR.with(|e| *e.borrow_mut() = Some(msg));
                     std::ptr::null_mut()
+                }
+            }
+        }
+
+        #[allow(clippy::missing_safety_doc)]
+        #[unsafe(no_mangle)]
+        pub unsafe extern "C" fn zcash_eip681_functions_u256_to_string(input: witffi_types::FfiByteSlice) -> witffi_types::FfiByteBuffer {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let input_rust = unsafe { input.as_bytes() };
+                <$impl_type>::functions_u256_to_string(input_rust)
+            }));
+
+            match result {
+                Ok(value) => {
+                    witffi_types::FfiByteBuffer::from_string(value)
+                }
+                Err(panic) => {
+                    let msg = if let Some(s) = panic.downcast_ref::<&str>() {
+                        s.to_string()
+                    } else if let Some(s) = panic.downcast_ref::<String>() {
+                        s.clone()
+                    } else {
+                        "unknown panic".to_string()
+                    };
+                    LAST_ERROR.with(|e| *e.borrow_mut() = Some(msg));
+                    witffi_types::FfiByteBuffer::from_string(String::new())
                 }
             }
         }
@@ -457,6 +488,46 @@ macro_rules! witffi_register_jni {
                 Ok(Err(e)) => {
                     let _ = env.throw_new("java/lang/RuntimeException", format!("{e}"));
                     std::ptr::null_mut()
+                }
+                Err(_panic) => {
+                    let _ = env.throw_new("java/lang/RuntimeException", "Rust panic");
+                    std::ptr::null_mut()
+                }
+            }
+        }
+
+        #[unsafe(no_mangle)]
+        pub extern "C" fn Java_zcash_eip681_Eip681_nativeFunctionsU256ToString<'local>(
+            mut env: jni::JNIEnv<'local>,
+            _class: jni::objects::JClass<'local>,
+            input: jni::objects::JByteArray<'local>,
+        ) -> jni::sys::jobject {
+            let env = &mut env;
+
+            let input_rust = match env.convert_byte_array(&input) {
+                Ok(v) => v,
+                Err(e) => {
+                    let _ = env.throw_new("java/lang/RuntimeException", format!("{e}"));
+                    return std::ptr::null_mut();
+                }
+            };
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                <$impl_type>::functions_u256_to_string(&input_rust)
+            }));
+
+            match result {
+                Ok(value) => {
+                    let convert = || -> jni::errors::Result<jni::sys::jobject> {
+                        let obj = env.new_string(&value)?;
+                        Ok(obj.into_raw())
+                    };
+                    match convert() {
+                        Ok(ptr) => ptr,
+                        Err(e) => {
+                            let _ = env.throw_new("java/lang/RuntimeException", format!("{e}"));
+                            std::ptr::null_mut()
+                        }
+                    }
                 }
                 Err(_panic) => {
                     let _ = env.throw_new("java/lang/RuntimeException", "Rust panic");

@@ -7,6 +7,7 @@ members = [
     "crates/witffi-swift",
     "crates/witffi-kotlin",
     "crates/witffi-cli",
+    "crates/xtask",
     "examples/eip681-ffi",
 ]
 
@@ -21,6 +22,7 @@ witffi-types = { path = "crates/witffi-types" }
 witffi-rust = { path = "crates/witffi-rust" }
 witffi-swift = { path = "crates/witffi-swift" }
 witffi-kotlin = { path = "crates/witffi-kotlin" }
+xtask = { path = "crates/xtask" }
 wit-parser = "0.245"
 snafu = "0.8"
 heck = "0.5"

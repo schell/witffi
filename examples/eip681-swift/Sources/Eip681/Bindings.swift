@@ -107,6 +107,8 @@ public enum TransactionRequest {
     case unrecognised(String)
 }
 
+public typealias U256 = Data
+
 // MARK: - FFI Conversion Functions
 
 /// Convert a C `FfiNativeRequest` to a Swift `NativeRequest`, freeing the C memory.
@@ -187,6 +189,15 @@ public enum Eip681 {
                 throw WitFFIError.readLastError()
             }
             return convertTransactionRequestPtr(resultPtr)
+        }
+    }
+
+    /// Convert a u256 type to a string for display
+    public static func functionsU256ToString(_ input: Data) -> String {
+        return try input.utf8CString.withUnsafeBufferPointer { inputBuf in
+            let inputSlice = FfiByteSlice(ptr: UnsafeRawPointer(inputBuf.baseAddress!).assumingMemoryBound(to: UInt8.self), len: inputBuf.count - 1)
+            let result = zcash_eip681_functions_u256_to_string(inputSlice)
+            return ffiByteBufferToString(result)
         }
     }
 }

@@ -1,0 +1,21 @@
+[package]
+name = "xtask"
+description = "Build task runner for eip681 FFI binding generation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"
+
+[dependencies]
+witffi-core.workspace = true
+witffi-rust.workspace = true
+witffi-swift.workspace = true
+witffi-kotlin.workspace = true
+snafu.workspace = true
+clap.workspace = true

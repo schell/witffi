@@ -157,8 +157,10 @@ mod tests {
         assert_eq!(world.name, "eip681");
 
         let funcs = exported_functions(&resolve, world_id);
-        assert_eq!(funcs.len(), 1);
+        assert_eq!(funcs.len(), 2);
         assert_eq!(funcs[0].interface_name, "parser");
         assert_eq!(funcs[0].function_name, "parse");
+        assert_eq!(funcs[1].interface_name, "functions");
+        assert_eq!(funcs[1].function_name, "u256-to-string");
     }
 }

@@ -58,6 +58,8 @@ typedef struct {
     FfiTransactionRequestUnrecognisedPayload *unrecognised;
 } FfiTransactionRequest;
 
+typedef FfiByteBuffer FfiU256;
+
 
 /* ---- Functions ---- */
 
@@ -66,6 +68,7 @@ int32_t zcash_eip681_error_message_utf8(char *buf, int32_t len);
 void zcash_eip681_clear_last_error(void);
 
 FfiTransactionRequest* zcash_eip681_parser_parse(FfiByteSlice input);
+FfiByteBuffer zcash_eip681_functions_u256_to_string(FfiByteSlice input);
 
 /* ---- Free functions ---- */
 

@@ -27,6 +27,16 @@ pub enum Error {
     Write { source: std::fmt::Error },
 }
 
+/// Describes what a C-ABI panic arm should return.
+enum FfiPanicReturn<'a> {
+    /// A boxed pointer result — return `std::ptr::null_mut()`.
+    NullPtr,
+    /// A boolean success/failure — return `false`.
+    Bool,
+    /// A typed return value — produce a type-appropriate empty sentinel.
+    Type(&'a Type),
+}
+
 /// Configuration for the Rust generator.
 #[derive(Debug, Clone)]
 pub struct RustConfig {
@@ -1153,7 +1163,12 @@ impl<'a> RustGenerator<'a> {
                 writeln!(out, "                    false")?;
             }
             writeln!(out, "                }}")?;
-            self.generate_panic_arm(out, has_ok_value)?;
+            let panic_ret = if has_ok_value {
+                FfiPanicReturn::NullPtr
+            } else {
+                FfiPanicReturn::Bool
+            };
+            self.generate_panic_arm(out, panic_ret)?;
             writeln!(out, "            }}")?;
         } else {
             writeln!(out, "            match result {{")?;
@@ -1168,7 +1183,11 @@ impl<'a> RustGenerator<'a> {
                 }
             }
             writeln!(out, "                }}")?;
-            self.generate_panic_arm(out, false)?;
+            let panic_ret = match &ef.function.result {
+                Some(ty) => FfiPanicReturn::Type(ty),
+                None => FfiPanicReturn::Bool,
+            };
+            self.generate_panic_arm(out, panic_ret)?;
             writeln!(out, "            }}")?;
         }
 
@@ -1178,7 +1197,18 @@ impl<'a> RustGenerator<'a> {
         Ok(())
     }
 
-    fn generate_panic_arm(&self, out: &mut String, has_value: bool) -> std::fmt::Result {
+    /// Generate the `Err(panic) => { ... }` arm for a C-ABI wrapper's
+    /// `catch_unwind` result.
+    ///
+    /// `error_value` determines the sentinel returned on panic:
+    /// - `FfiPanicReturn::NullPtr` — `std::ptr::null_mut()` (boxed result types)
+    /// - `FfiPanicReturn::Bool` — `false` (result types without an Ok payload)
+    /// - `FfiPanicReturn::Type(ty)` — a type-appropriate empty value
+    fn generate_panic_arm(
+        &self,
+        out: &mut String,
+        error_value: FfiPanicReturn<'_>,
+    ) -> std::fmt::Result {
         writeln!(out, "                Err(panic) => {{")?;
         writeln!(
             out,
@@ -1197,13 +1227,53 @@ impl<'a> RustGenerator<'a> {
             out,
             "                    LAST_ERROR.with(|e| *e.borrow_mut() = Some(msg));"
         )?;
-        if has_value {
-            writeln!(out, "                    std::ptr::null_mut()")?;
-        } else {
-            writeln!(out, "                    Default::default()")?;
-        }
+        let sentinel = match error_value {
+            FfiPanicReturn::NullPtr => "std::ptr::null_mut()".to_string(),
+            FfiPanicReturn::Bool => "false".to_string(),
+            FfiPanicReturn::Type(ty) => self.ffi_error_default(ty),
+        };
+        writeln!(out, "                    {sentinel}")?;
         writeln!(out, "                }}")?;
         Ok(())
+    }
+
+    /// Produce a default/empty expression suitable for a C-ABI return type on
+    /// error. For pointer types this is `null_mut`, for byte-buffer types an
+    /// empty buffer, and for primitives `Default::default()`.
+    fn ffi_error_default(&self, ty: &Type) -> String {
+        match ty {
+            Type::String => "witffi_types::FfiByteBuffer::from_string(String::new())".to_string(),
+            Type::Bool
+            | Type::U8
+            | Type::U16
+            | Type::U32
+            | Type::U64
+            | Type::S8
+            | Type::S16
+            | Type::S32
+            | Type::S64
+            | Type::F32
+            | Type::F64
+            | Type::Char => "Default::default()".to_string(),
+            Type::Id(id) => {
+                let typedef = &self.resolve.types[*id];
+                match &typedef.kind {
+                    TypeDefKind::List(Type::U8) => {
+                        "witffi_types::FfiByteBuffer::from_vec(Vec::new())".to_string()
+                    }
+                    TypeDefKind::List(_) => {
+                        "witffi_types::FfiByteBuffer::from_vec(Vec::new())".to_string()
+                    }
+                    TypeDefKind::Type(aliased) => self.ffi_error_default(aliased),
+                    TypeDefKind::Option(_) => "std::ptr::null_mut()".to_string(),
+                    TypeDefKind::Record(_) | TypeDefKind::Variant(_) => {
+                        "std::ptr::null_mut()".to_string()
+                    }
+                    _ => "Default::default()".to_string(),
+                }
+            }
+            _ => "Default::default()".to_string(),
+        }
     }
 
     fn generate_param_conversion(
@@ -1241,6 +1311,9 @@ impl<'a> RustGenerator<'a> {
                             out,
                             "{indent}let {c_name}_rust = unsafe {{ {c_name}.as_bytes() }};"
                         )?;
+                    }
+                    TypeDefKind::Type(aliased) => {
+                        self.generate_param_conversion(out, c_name, aliased, indent)?;
                     }
                     _ => {
                         writeln!(out, "{indent}let {c_name}_rust = {c_name};")?;
@@ -1786,13 +1859,45 @@ impl<'a> RustGenerator<'a> {
             writeln!(out, "            }}")?;
         } else {
             writeln!(out, "            match result {{")?;
-            writeln!(out, "                Ok(value) => value,")?;
+            let is_primitive_return = match &ef.function.result {
+                Some(ty) => self.is_jni_primitive(ty),
+                None => true,
+            };
+            if is_primitive_return {
+                writeln!(out, "                Ok(value) => value,")?;
+            } else {
+                let ty = ef.function.result.as_ref().unwrap();
+                let jni_conv = self.generate_to_jni_field_expr(ty, "value");
+                writeln!(out, "                Ok(value) => {{")?;
+                writeln!(
+                    out,
+                    "                    let convert = || -> jni::errors::Result<jni::sys::jobject> {{"
+                )?;
+                writeln!(out, "                        let obj = {jni_conv};")?;
+                writeln!(out, "                        Ok(obj.into_raw())")?;
+                writeln!(out, "                    }};")?;
+                writeln!(out, "                    match convert() {{")?;
+                writeln!(out, "                        Ok(ptr) => ptr,")?;
+                writeln!(out, "                        Err(e) => {{")?;
+                writeln!(
+                    out,
+                    "                            let _ = env.throw_new(\"java/lang/RuntimeException\", format!(\"{{e}}\"));"
+                )?;
+                writeln!(out, "                            std::ptr::null_mut()")?;
+                writeln!(out, "                        }}")?;
+                writeln!(out, "                    }}")?;
+                writeln!(out, "                }}")?;
+            }
             writeln!(out, "                Err(_panic) => {{")?;
             writeln!(
                 out,
                 "                    let _ = env.throw_new(\"java/lang/RuntimeException\", \"Rust panic\");"
             )?;
-            writeln!(out, "                    Default::default()")?;
+            if is_primitive_return {
+                writeln!(out, "                    Default::default()")?;
+            } else {
+                writeln!(out, "                    std::ptr::null_mut()")?;
+            }
             writeln!(out, "                }}")?;
             writeln!(out, "            }}")?;
         }

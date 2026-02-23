@@ -20,6 +20,8 @@
 mod ffi;
 use ffi::*;
 
+pub use ffi::U256;
+
 // ---- Conversion helpers ----
 
 /// Convert an `eip681::NativeRequest` into the generated idiomatic `NativeRequest`.
@@ -78,6 +80,11 @@ impl Eip681 for Impl {
         eip681::TransactionRequest::parse(input)
             .map(tx_request_to_idiomatic)
             .map_err(|e| format!("{e}"))
+    }
+
+    fn functions_u256_to_string(input: &[u8]) -> String {
+        let u256 = eip681::U256::from_big_endian(input);
+        format!("{u256}")
     }
 }
 

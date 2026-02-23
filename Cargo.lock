@@ -330,10 +330,8 @@ version = "0.1.0"
 dependencies = [
  "eip681",
  "jni",
- "witffi-core",
- "witffi-kotlin",
- "witffi-rust",
  "witffi-types",
+ "xtask",
 ]
 
 [[package]]
@@ -1362,6 +1360,18 @@ dependencies = [
 [[package]]
 name = "witffi-types"
 version = "0.1.0"
+
+[[package]]
+name = "xtask"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "snafu",
+ "witffi-core",
+ "witffi-kotlin",
+ "witffi-rust",
+ "witffi-swift",
+]
 
 [[package]]
 name = "yansi"

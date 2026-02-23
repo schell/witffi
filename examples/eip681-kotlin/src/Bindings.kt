@@ -53,11 +53,14 @@ sealed class TransactionRequest {
     @Keep class Unrecognised(val value: String) : TransactionRequest()
 }
 
+typealias U256 = ByteArray
+
 // ---- Backend interface ----
 
 /** Interface defining the Eip681 API contract. */
 interface Eip681Backend {
     fun parserParse(input: String): TransactionRequest
+    fun functionsU256ToString(input: ByteArray): String
 }
 
 // ---- Implementation ----
@@ -76,12 +79,17 @@ class Eip681(libraryName: String = "eip681_ffi") : Eip681Backend {
         }
 
         @JvmStatic private external fun nativeParserParse(input: String): TransactionRequest
+        @JvmStatic private external fun nativeFunctionsU256ToString(input: ByteArray): String
     }
 
     init { loadLibrary(libraryName) }
 
     override fun parserParse(input: String): TransactionRequest {
         return nativeParserParse(input)
+    }
+
+    override fun functionsU256ToString(input: ByteArray): String {
+        return nativeFunctionsU256ToString(input)
     }
 
 }
