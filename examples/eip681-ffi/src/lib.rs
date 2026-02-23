@@ -12,7 +12,7 @@
 //!    and `witffi_register_ffi!` / `witffi_register_jni!` macros
 //! 3. This file implements the trait, converting between `eip681` domain types
 //!    and the generated idiomatic types
-//! 4. `witffi_register!(Impl)` stamps out the `extern "C"` symbols (C-ABI)
+//! 4. `witffi_register_ffi!(Impl)` stamps out the `extern "C"` symbols (C-ABI)
 //! 5. `witffi_register_jni!(Impl)` stamps out `Java_` JNI entry points
 #![allow(non_camel_case_types, non_snake_case, unused_unsafe)]
 
